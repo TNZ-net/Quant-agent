@@ -1,0 +1,40 @@
+universe: [US.AAPL, US.MSFT, US.NVDA, US.AMZN, US.GOOGL, US.META, US.JPM, US.V, US.JNJ, US.UNH,
+           US.XOM, US.CVX, US.PG, US.KO, US.PEP, US.WMT, US.HD, US.COST, US.MRK, US.ABBV,
+           US.BAC, US.CSCO, US.ORCL, US.CRM, US.ADBE, US.INTC, US.MCD, US.NKE, US.CAT, US.HON]
+history_years: 6
+horizon_days: 5          
+embargo_days: 5          
+costs:                   
+  fee_bps: 5
+  slippage_bps: 5
+portfolio:
+  top_k: 5
+  weighting: equal       
+  rebalance_every: 5      
+walk_forward:
+  train_days: 504
+  test_days: 63
+  step_days: 63
+  expanding: false
+model:
+  live: ensemble
+  ridge_alpha: 100.0
+  lgbm:
+    num_leaves: 8
+    max_depth: 3
+    min_child_samples: 200
+    learning_rate: 0.02
+    n_estimators: 400
+    subsample: 0.7
+    subsample_freq: 1    
+    colsample_bytree: 0.7
+    reg_lambda: 10
+bootstrap:
+  block_size: 10
+  n_boot: 2000
+live_models: [random, momentum, ridge, lgbm, ensemble]
+ledger:
+  max_stale_days: 5   
+monitor:
+  window_dates: 60
+  min_dates: 30       

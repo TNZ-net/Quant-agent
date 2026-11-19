@@ -1,0 +1,9 @@
+services:
+  postgres:
+    image: postgres:16
+    restart: unless-stopped
+    environment: { POSTGRES_USER: quant, POSTGRES_PASSWORD: quant, POSTGRES_DB: quant }
+    ports: ["5433:5432"]
+    volumes: [pgdata:/var/lib/postgresql/data, "./db:/docker-entrypoint-initdb.d:ro"]
+volumes:
+  pgdata:
