@@ -7,7 +7,7 @@
 ![scikit-learn](https://img.shields.io/badge/scikit--learn-ML-F7931E)
 ![Streamlit](https://img.shields.io/badge/Streamlit-dashboard-FF4B4B)
 
-A small forecasting system that ranks 30 liquid US stocks by expected 5-day return. Prices come from the Moomoo OpenAPI into PostgreSQL. Five models (a random baseline, momentum, ridge, LightGBM and an ensemble) are validated with a leakage-safe walk-forward backtest. Every live prediction is hashed and written to an append-only ledger before its outcome exists, then scored and monitored. A local LLM writes a weekly note, but only when there is enough data, and code checks its numbers. The project places no orders and uses no trading credentials. Educational project, not investment advice.
+A small forecasting system that ranks 30 liquid US stocks by expected 5-day return. Prices come from the Moomoo OpenAPI into PostgreSQL. Five models (a random baseline, momentum, ridge, LightGBM and an ensemble) are validated with a leakage-safe walk-forward backtest. Every live prediction is hashed and written to an append-only ledger before its outcome exists, then graded once its 5-day horizon has passed. A local LLM can write a note on the results, but only when there is enough data, and code checks its numbers. The code only reads prices: it never opens a trading session or places orders. Educational project, not investment advice.
 
 ---
 
@@ -24,7 +24,7 @@ A small forecasting system that ranks 30 liquid US stocks by expected 5-day retu
 - **Live skill:** rank IC per model with 95% confidence intervals and a rolling-window slider, with an "insufficient sample" warning until enough days are scored
 - **Backtest:** results table and equity curves for all models against buy-and-hold
 
-**Demo video** (silent, about 3 minutes): [link]
+**Demo video** (silent screen recording): [link]
 
 The recording shows the daily job logging 5 models × 30 stocks with an anchor hash, the fingerprint check (0 mismatches), the database refusing an edit, a delete and a truncate, the AI note declining to analyse thin data, the automated tests, and then the dashboard.
 
@@ -37,7 +37,7 @@ flowchart LR
     A["Moomoo OpenAPI<br/>(OpenD gateway)"] -->|"ingest.py<br/>idempotent upsert"| B[("PostgreSQL<br/>prices")]
     B -->|"walk-forward backtest<br/>purge + embargo"| R["Backtest report<br/>IC, Sharpe, bootstrap CIs"]
     B -->|"predict.py<br/>5 models x 30 stocks"| C[("Ledger<br/>SHA-256 hashes<br/>append-only triggers")]
-    C -->|"daily Merkle root"| P["anchors/<br/>published to GitHub"]
+    C -->|"daily Merkle root"| P["anchors/<br/>published to a public Git repo"]
     C -->|"score.py<br/>after 5-day horizon"| O[("Outcomes")]
     O -->|"evaluate.py<br/>rank IC + CIs"| D["Streamlit dashboard"]
     O -->|"stats + worst misses"| G["LangGraph reflection<br/>Ollama local LLM"]
@@ -51,7 +51,7 @@ flowchart LR
 | Area | Technologies |
 |---|---|
 | Language | Python, SQL (PL/pgSQL), PowerShell |
-| Data and database | PostgreSQL 16, psycopg 3, SQLAlchemy 2, JSONB, pandas, NumPy, SciPy |
+| Data and database | PostgreSQL 16, psycopg 3, SQLAlchemy 2, JSONB, pandas, NumPy |
 | Machine learning | scikit-learn (Ridge), LightGBM |
 | Market data | Moomoo OpenAPI (OpenD gateway) |
 | LLM and agents | Ollama (local LLM), Qwen2.5, LangGraph |
@@ -68,7 +68,7 @@ flowchart LR
 - ETL from a broker API into PostgreSQL
 - Idempotent upserts that are safe to re-run, with gap checks on loaded data
 - Config-driven design: every assumption lives in one YAML file
-- Scheduled daily batch job
+- Daily batch job (PowerShell script registered with Windows Task Scheduler)
 
 **Modelling and validation**
 - Cross-sectional ranking: predict which stocks beat the others, not absolute prices
@@ -83,12 +83,12 @@ flowchart LR
 - Append-only ledger enforced with database triggers
 - SHA-256 commitment per prediction and a daily Merkle root published outside the database
 - Ex-ante logging: refuses stale or partial price bars
-- Outcomes scored only after the horizon expires, with a model-version registry
+- Outcomes recorded insert-only, and only after the horizon expires, with a model-version registry
 - Rolling IC with minimum-sample gating
 
 **LLM engineering**
 - Stateful agent workflow with conditional edges (LangGraph)
-- Deterministic output validation: rejects invented numbers, dates, advice and forecasts
+- Deterministic output validation: rejects invented numbers and dates, advice wording and some forecast phrasing
 - Sample-size gate and fallback to plain facts
 - Local, private inference
 
@@ -100,11 +100,12 @@ flowchart LR
 
 ## Results
 
-- Walk-forward backtest on 30 US large caps, about 3 years out-of-sample, net of costs: **no model showed a detectable edge**. Momentum had the highest rank IC (0.040, 95% CI [0.0002, 0.081]), and every excess-return interval against buy-and-hold spanned zero.
+- Walk-forward backtest on 30 US large caps, about 3 years out-of-sample, net of costs: **no model beat buy-and-hold**, and every excess-return 95% interval spans zero. Momentum had the highest rank IC (0.040, 95% CI [0.0002, 0.081]), only barely above zero, which is weak evidence with five models compared.
 - A random model earned about the same as the benchmark, which shows how much of the return is the market itself.
 - Limitations: the universe is today's large caps (survivorship bias), samples are small, and live scoring needs roughly 60 scored days before it means anything.
 
 ---
 
 ## Data
+
 Daily bars for 30 US large caps (1,506 trading days each, Nov 2020 to Nov 2026, forward-adjusted), pulled from the Moomoo OpenAPI. Market data is not redistributed in this repository. A synthetic generator is included for offline tests.
